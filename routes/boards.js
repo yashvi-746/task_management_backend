@@ -115,9 +115,8 @@ router.post('/:id/tasks', protect, async (req, res) => {
   try {
     const board = await Board.findById(req.params.id);
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
-    const isMember = board.members.some(m => m.toString() === req.user._id.toString());
-    if (req.user.role !== 'admin' && !isMember) {
-      return res.status(403).json({ success: false, message: 'Access denied' });
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Access denied: Only admins can create and allot tasks.' });
     }
     const { title, description, priority, dueDate, assignedTo, status } = req.body;
     const task = await Task.create({

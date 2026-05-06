@@ -25,7 +25,10 @@ router.put('/:id', protect, async (req, res) => {
       // Admin can update all fields
       Object.assign(task, req.body);
     } else {
-      // Regular user can only update status
+      // Regular user can only update status of tasks assigned to them
+      if (!task.assignedTo || task.assignedTo.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: 'Access denied: You can only update tasks assigned to you.' });
+      }
       if (req.body.status) task.status = req.body.status;
     }
     await task.save();
