@@ -20,6 +20,8 @@ router.post('/register', async (req, res) => {
     if (exists) return res.status(400).json({ success: false, message: 'Email already registered' });
 
     const user = await User.create({ name: name.trim(), email: email.toLowerCase(), password, role: role === 'admin' ? 'admin' : 'user' });
+    const Board = require('../models/Board');
+    await Board.updateMany({}, { $addToSet: { members: user._id } });
     const token = signToken(user._id);
     res.status(201).json({ success: true, data: { token, user } });
   } catch (err) {

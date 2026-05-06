@@ -20,13 +20,18 @@ router.post('/', protect, adminOnly, async (req, res) => {
 router.get('/', protect, async (req, res) => {
   try {
     let query = {};
+    if (req.user.role !== 'admin') query = { members: req.user._id };
     const boards = await Board.find(query).populate('owner members', 'name email').sort({ createdAt: -1 });
 
     // Attach task counts
     const boardsWithCounts = await Promise.all(boards.map(async (b) => {
-      const taskCount = await Task.countDocuments({ board: b._id });
-      const completedCount = await Task.countDocuments({ board: b._id, status: 'Done' });
-      const inProgressCount = await Task.countDocuments({ board: b._id, status: 'InProgress' });
+      let taskFilter = { board: b._id };
+      if (req.user.role !== 'admin') {
+        taskFilter.assignedTo = req.user._id;
+      }
+      const taskCount = await Task.countDocuments(taskFilter);
+      const completedCount = await Task.countDocuments({ ...taskFilter, status: 'Done' });
+      const inProgressCount = await Task.countDocuments({ ...taskFilter, status: 'InProgress' });
       return { ...b.toObject(), taskCount, completedCount, inProgressCount };
     }));
 
@@ -41,7 +46,7 @@ router.get('/:id', protect, async (req, res) => {
   try {
     const board = await Board.findById(req.params.id).populate('owner members', 'name email');
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
-    const isMember = true;
+    const isMember = board.members.some(m => m._id.toString() === req.user._id.toString());
     if (req.user.role !== 'admin' && !isMember) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
@@ -110,7 +115,7 @@ router.post('/:id/tasks', protect, async (req, res) => {
   try {
     const board = await Board.findById(req.params.id);
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
-    const isMember = true;
+    const isMember = board.members.some(m => m.toString() === req.user._id.toString());
     if (req.user.role !== 'admin' && !isMember) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
@@ -132,7 +137,7 @@ router.get('/:id/tasks', protect, async (req, res) => {
   try {
     const board = await Board.findById(req.params.id);
     if (!board) return res.status(404).json({ success: false, message: 'Board not found' });
-    const isMember = true;
+    const isMember = board.members.some(m => m.toString() === req.user._id.toString());
     if (req.user.role !== 'admin' && !isMember) {
       return res.status(403).json({ success: false, message: 'Access denied' });
     }
